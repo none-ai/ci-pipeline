@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -16,7 +17,8 @@ def index():
             '/api/deployments',
             '/api/deploy/<pipeline_id>',
             '/api/deploy',
-            '/api/status/<pipeline_id>'
+            '/api/status/<pipeline_id>',
+            '/api/deploy/<pipeline_id> (DELETE)'
         ]
     })
 
@@ -47,7 +49,9 @@ def create_deployment():
         'pipeline_id': pipeline_id,
         'status': 'pending',
         'message': '部署任务已创建',
-        'steps': []
+        'steps': [],
+        'created_at': datetime.now().isoformat(),
+        'updated_at': datetime.now().isoformat()
     }
     deployments[pipeline_id] = deployment
 
@@ -66,8 +70,19 @@ def update_status(pipeline_id):
     data = request.get_json() or {}
     deployments[pipeline_id]['status'] = data.get('status', 'pending')
     deployments[pipeline_id]['message'] = data.get('message', '')
+    deployments[pipeline_id]['updated_at'] = datetime.now().isoformat()
 
     return jsonify(deployments[pipeline_id])
+
+
+@app.route('/api/deploy/<pipeline_id>', methods=['DELETE'])
+def delete_deployment(pipeline_id):
+    """删除部署任务"""
+    if pipeline_id not in deployments:
+        return jsonify({'error': '部署流水线不存在'}), 404
+
+    del deployments[pipeline_id]
+    return jsonify({'message': '部署任务已删除'})
 
 
 if __name__ == '__main__':

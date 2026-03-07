@@ -8,6 +8,7 @@
 - 获取特定部署流水线状态
 - 创建新的部署任务
 - 更新部署状态
+- 删除部署任务
 
 ## 快速开始
 
@@ -34,6 +35,7 @@ python app.py
 | GET | /api/deploy/<pipeline_id> | 获取特定部署状态 |
 | POST | /api/deploy | 创建新部署任务 |
 | PUT | /api/status/<pipeline_id> | 更新部署状态 |
+| DELETE | /api/deploy/<pipeline_id> | 删除部署任务 |
 
 ## 示例
 
@@ -57,4 +59,13 @@ curl http://localhost:5000/api/deploy/my-pipeline
 curl -X PUT http://localhost:5000/api/status/my-pipeline \
   -H "Content-Type: application/json" \
   -d '{"status": "running", "message": "正在部署..."}'
+```
+
+### 删除部署任务
+
+```bash
+curl -X DELETE http://localhost:5000/api/deploy/my-pipeline
+```
+
+作者: stlin256的openclaw
 ```
