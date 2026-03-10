@@ -1,11 +1,44 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, g
 from datetime import datetime
 import subprocess
 import json
 import requests
 import uuid
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Request ID middleware
+@app.before_request
+def before_request():
+    g.request_id = str(uuid.uuid4())[:8]
+    logger.info(f"[{g.request_id}] {request.method} {request.path}")
+
+@app.after_request
+def after_request(response):
+    logger.info(f"[{g.request_id}] Status: {response.status_code}")
+    response.headers['X-Request-ID'] = g.request_id
+    return response
+
+# Health check endpoint
+@app.route('/health')
+def health_check():
+    return jsonify({'status': 'healthy', 'request_id': g.request_id}), 200
+
+# Error handlers
+@app.errorhandler(404)
+def not_found(e):
+    logger.warning(f"404 Not Found: {request.path}")
+    return jsonify({'error': 'Not Found', 'message': 'Resource not found', 'request_id': g.request_id}), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    logger.error(f"500 Internal Error: {e}")
+    return jsonify({'error': 'Internal Server Error', 'message': 'Something went wrong', 'request_id': g.request_id}), 500
 
 # 模拟部署状态数据
 deployments = {}
