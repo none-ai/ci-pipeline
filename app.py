@@ -5,12 +5,29 @@ import json
 import requests
 import uuid
 import logging
+import os
+from functools import wraps
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Security: API Key authentication
+API_KEY = os.environ.get('CI_API_KEY', 'dev-ci-key-12345')
+app.config['API_KEY'] = API_KEY
+
+def require_api_key(f):
+    """Decorator to require API key for protected endpoints"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        provided_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+        if provided_key != API_KEY:
+            logger.warning(f"Unauthorized access attempt from {request.remote_addr}")
+            return jsonify({'error': 'Unauthorized', 'message': 'Invalid or missing API key'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Request ID middleware
 @app.before_request
@@ -22,12 +39,34 @@ def before_request():
 def after_request(response):
     logger.info(f"[{g.request_id}] Status: {response.status_code}")
     response.headers['X-Request-ID'] = g.request_id
+    response.headers['X-API-Version'] = '2.0'
     return response
 
 # Health check endpoint
 @app.route('/health')
 def health_check():
-    return jsonify({'status': 'healthy', 'request_id': g.request_id}), 200
+    return jsonify({
+        'status': 'healthy', 
+        'request_id': g.request_id,
+        'version': '2.0',
+        'api_key_required': True
+    }), 200
+
+
+# System info endpoint (protected)
+@app.route('/api/system/info')
+@require_api_key
+def system_info():
+    """Get system information"""
+    return jsonify({
+        'system': {
+            'deployments_count': len(deployments),
+            'test_reports_count': len(test_reports),
+            'webhooks_count': len(webhooks)
+        },
+        'version': '2.0',
+        'timestamp': datetime.now().isoformat()
+    })
 
 # Error handlers
 @app.errorhandler(404)
@@ -85,8 +124,9 @@ def index():
 
 
 @app.route('/api/deployments', methods=['GET'])
+@require_api_key
 def get_deployments():
-    """获取所有部署记录"""
+    """Get all deployment records"""
     return jsonify({
         'deployments': list(deployments.values())
     })
